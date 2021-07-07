@@ -50,3 +50,8 @@
     
     ​		bundletool.jar 路径
   ```
+
+
+ * 详细说明
+
+    配套博客为:[https://juejin.cn/post/6982111395621896229](https://juejin.cn/post/6982111395621896229)
