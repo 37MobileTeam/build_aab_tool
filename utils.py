@@ -9,7 +9,7 @@ Linux = "Linux"
 MACOS = "Darwin"
 
 
-def get_system():
+def get_system() -> str:
     return platform.system()
 
 

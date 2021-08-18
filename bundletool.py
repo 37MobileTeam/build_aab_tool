@@ -12,7 +12,7 @@ from utils import *
 
 sep = os.sep
 APKTOOL_PATH = f"tools{sep}apktool-2.5.2-fix.jar"
-AAPT2_PATH = f"tools{sep}30.0.3{sep}aapt2"
+AAPT2_PATH = os.path.join("tools", "aapt2", get_system(), "aapt2")
 ANDROID_JAR_PATH = f"tools{sep}android_30.jar"
 BUNDLETOOL_TOOL_PATH = f"tools{sep}bundletool-all-1.6.1.jar"
 
@@ -246,6 +246,14 @@ class Bundletool:
         print(f"[apktool版本号]:↓↓↓↓↓")
         status, msg = execute_cmd(f"java -jar {self.apktool} --version")
         status += status
+        # 如果是linux 或者 mac 需要给aapt可执行权限
+        if get_system() in [MACOS, Linux]:
+            try:
+                execute_cmd(f"chmod +x {self.aapt2}")
+            except Exception as e:
+                print("授权失败:", e)
+                pass
+            pass
         print(f"[aapt2]:{self.aapt2}")
         print(f"[aapt2版本号]:↓↓↓↓↓")
         status, msg = execute_cmd(f"{self.aapt2} version")
