@@ -10,18 +10,24 @@ import xml.etree.ElementTree as ET
 
 from utils import *
 
-sep = os.sep
-APKTOOL_PATH = f"tools{sep}apktool-2.5.2-fix.jar"
-AAPT2_PATH = os.path.join("tools", "aapt2", get_system(), "aapt2")
-ANDROID_JAR_PATH = f"tools{sep}android_30.jar"
-BUNDLETOOL_TOOL_PATH = f"tools{sep}bundletool-all-1.6.1.jar"
 
-KEYSTORE = f"tools{sep}luojian37.jks"
+def get_base_dir() -> str:
+    if hasattr(sys, "_MEIPASS"):
+        return sys._MEIPASS
+    return ""
+
+
+APKTOOL_PATH = os.path.join(get_base_dir(), "tools", "apktool-2.5.2-fix.jar")
+AAPT2_PATH = os.path.join(get_base_dir(), "tools", "aapt2", get_system(), "aapt2")
+ANDROID_JAR_PATH = os.path.join(get_base_dir(), "tools", "android_30.jar")
+BUNDLETOOL_TOOL_PATH = os.path.join(get_base_dir(), "tools", "bundletool-all-1.6.1.jar")
+
+KEYSTORE = os.path.join(get_base_dir(), "tools", "luojian37.jks")
 STORE_PASSWORD = "luojian37"
 KEY_ALIAS = "luojian37"
 KEY_PASSWORD = "luojian37"
 
-BUNDLE_MODULE_TEMPLATE_PATH = f"tools{sep}pad_template"
+BUNDLE_MODULE_TEMPLATE_PATH = os.path.join(get_base_dir(), "tools", "pad_template")
 
 
 def task(task_name, fun, *args, **kwargs):
@@ -432,10 +438,11 @@ class Bundletool:
 
         status, msg = delete(temp_dir)
         print(f"执行完成，删除临时文件。输出路径:{out_aab_path}")
-        if tag:
-            sys.exit(1)
-        else:
-            sys.exit(0)
+        return 1 if tag else 0, msg
+        # if tag:
+        #     sys.exit(1)
+        # else:
+        #     sys.exit(0)
 
 
 if __name__ == "__main__":
