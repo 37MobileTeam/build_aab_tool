@@ -14,7 +14,7 @@
     python bundletool.py -i test.apk -o test.aab
     ```
 
-    参数说明:
+  参数说明:
     ```
       -h 
     
@@ -49,9 +49,12 @@
       --bundletool 
     
     ​		bundletool.jar 路径
+      --pad_reg 
+    
+    ​		正则表达式，从assets里面去剪切文件构建pad模块 例如: ^\d.*\.map$ 剪切以数字开头 .map 结尾的文件到pad目录
   ```
 
 
- * 详细说明
+* 详细说明
 
-    配套博客为:[https://juejin.cn/post/6982111395621896229](https://juejin.cn/post/6982111395621896229)
+  配套博客为:[https://juejin.cn/post/6982111395621896229](https://juejin.cn/post/6982111395621896229)
