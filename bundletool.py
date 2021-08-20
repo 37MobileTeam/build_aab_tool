@@ -8,7 +8,7 @@ import sys
 
 import xml.etree.ElementTree as ET
 
-from utils import *
+from .utils import *
 
 
 def print_log(message):
@@ -20,6 +20,8 @@ def print_log(message):
 
 
 def get_base_dir() -> str:
+    if tools_base_dir:
+        return tools_base_dir
     if hasattr(sys, "_MEIPASS"):
         return sys._MEIPASS
     return ""
@@ -212,9 +214,12 @@ class Bundletool:
                  aapt2=AAPT2_PATH,
                  android=ANDROID_JAR_PATH,
                  bundletool=BUNDLETOOL_TOOL_PATH,
-                 print_fun=None):
+                 print_fun=None,
+                 input_tools_base_dir=None):
         global global_print_fun
         global_print_fun = print_fun
+        global tools_base_dir
+        tools_base_dir = input_tools_base_dir
         # 初始化环境
         self.pad_reg = ""
         self.keystore = os.path.abspath(keystore)
