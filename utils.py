@@ -13,7 +13,7 @@ def get_system() -> str:
     return platform.system()
 
 
-def execute_cmd(cmd) -> tuple[int, str]:
+def execute_cmd(cmd):
     # print("#" * 10, cmd)
     status = os.system(cmd)
     return status, ""
@@ -29,7 +29,7 @@ def write_file_text(file_path, text) -> int:
         return f.write(text)
 
 
-def get_file_name_list(file_dir: str) -> list[str]:
+def get_file_name_list(file_dir: str):
     file_dir = file_dir.replace("\\", "/")
     file_name_list = []
     for root, dirs, files in os.walk(file_dir):
@@ -39,7 +39,7 @@ def get_file_name_list(file_dir: str) -> list[str]:
     return file_name_list
 
 
-def zip_file(src_dir, zip_name="") -> tuple[int, str]:
+def zip_file(src_dir, zip_name=""):
     if not zip_name:
         zip_name = src_dir + '.zip'
     z = zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED)
@@ -52,7 +52,7 @@ def zip_file(src_dir, zip_name="") -> tuple[int, str]:
     return 0, "success"
 
 
-def unzip_file(zip_src, dst_dir) -> tuple[int, str]:
+def unzip_file(zip_src, dst_dir):
     r = zipfile.is_zipfile(zip_src)
     if r:
         fz = zipfile.ZipFile(zip_src, 'r')
@@ -63,13 +63,13 @@ def unzip_file(zip_src, dst_dir) -> tuple[int, str]:
     return 0, "success"
 
 
-def mv(src_path, dst_path) -> tuple[int, str]:
+def mv(src_path, dst_path):
     copy(src_path, dst_path)
     delete(src_path)
     return 0, "success"
 
 
-def delete(path) -> tuple[int, str]:
+def delete(path):
     if not os.path.exists(path):
         return 0, "success"
     if os.path.isfile(path):
@@ -92,7 +92,7 @@ def delete(path) -> tuple[int, str]:
     return 0, "success"
 
 
-def copy(source_path, target_path) -> tuple[int, str]:
+def copy(source_path, target_path):
     if not os.path.exists(source_path):
         return 0, "文件不存在，但是直接给成功。有的项目没有lib文件夹"
     if os.path.isfile(source_path):

@@ -11,7 +11,10 @@ import xml.etree.ElementTree as ET
 if hasattr(sys, "_flask"):
     from .utils import *
 else:
-    from utils import *
+    try:
+        from utils import *
+    except:
+        from .utils import *
 
 
 def print_log(message):
@@ -136,7 +139,7 @@ def copy_dex(base_dir_path, target_dex_path):
     return 0, "success"
 
 
-def build_bundle(bundletool: str, modules: str, out_aab_path: str) -> tuple[int, str]:
+def build_bundle(bundletool: str, modules: str, out_aab_path: str):
     """
     构建aab
     :param bundletool: 构架工具
@@ -154,7 +157,7 @@ def decode_apk(apk_path: str, decode_apk_dir: str, apktool: str = None):
     return execute_cmd(cmd)
 
 
-def pad_mv_assets(base_dir, pad_dir, pad_reg) -> tuple[int, str]:
+def pad_mv_assets(base_dir, pad_dir, pad_reg):
     """
     从base apk里面拷贝资源到pad里面去
     :param base_dir: apk的解压路径
@@ -179,7 +182,7 @@ def pad_mv_assets(base_dir, pad_dir, pad_reg) -> tuple[int, str]:
     return 0, "success"
 
 
-def create_pad_module_dir(temp_dir, module_name, package) -> tuple[int, str]:
+def create_pad_module_dir(temp_dir, module_name, package):
     """
     创建一个module目录
     :param temp_dir: 存放module目录的位置
@@ -310,8 +313,7 @@ class Bundletool:
     def is_pad(self):
         return len(self.pad_reg) > 0
 
-    def build_module_zip(self, temp_dir: str, module_name: str, input_resources_dir: str, out_module_zip_path: str) -> \
-            tuple[int, str]:
+    def build_module_zip(self, temp_dir: str, module_name: str, input_resources_dir: str, out_module_zip_path: str):
         """
         :param temp_dir: 构建的临时根目录
         :param module_name: module的名字
