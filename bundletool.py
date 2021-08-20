@@ -10,6 +10,16 @@ import xml.etree.ElementTree as ET
 
 from utils import *
 
+global_print_fun = None
+
+
+def print_log(message):
+    if global_print_fun:
+        global_print_fun(message)
+    else:
+        print(message)
+    pass
+
 
 def get_base_dir() -> str:
     if hasattr(sys, "_MEIPASS"):
@@ -31,11 +41,11 @@ BUNDLE_MODULE_TEMPLATE_PATH = os.path.join(get_base_dir(), "tools", "pad_templat
 
 
 def task(task_name, fun, *args, **kwargs):
-    print(f"---{task_name}")
+    print_log(f"---{task_name}")
     start_time = time.time()
     status, msg = fun(*args, **kwargs)
     end_time = time.time()
-    print(f"###耗时:{end_time - start_time} {task_name} status:{status} msg:{msg}")
+    print_log(f"###耗时:{end_time - start_time} {task_name} status:{status} msg:{msg}")
     if status != 0:
         raise Exception(f"task {task_name} 执行异常status:{status} msg:{msg}")
 
@@ -203,7 +213,8 @@ class Bundletool:
                  apktool=APKTOOL_PATH,
                  aapt2=AAPT2_PATH,
                  android=ANDROID_JAR_PATH,
-                 bundletool=BUNDLETOOL_TOOL_PATH):
+                 bundletool=BUNDLETOOL_TOOL_PATH,
+                 print_fun=None):
         # 初始化环境
         self.pad_reg = ""
         self.keystore = os.path.abspath(keystore)
@@ -226,30 +237,30 @@ class Bundletool:
         self.bundle_modules = {}
 
     def check_system(self, apk_path, out_aab_path):
-        print(f"[当前系统]:{get_system()}")
-        print(f"[当前系统JAVA版本]↓↓↓↓↓:")
+        print_log(f"[当前系统]:{get_system()}")
+        print_log(f"[当前系统JAVA版本]↓↓↓↓↓:")
         _, msg = execute_cmd("java -version")
-        print(f"[输入apk]:{apk_path}")
+        print_log(f"[输入apk]:{apk_path}")
         if not os.path.exists(apk_path):
             return -1, f"输入的apk不存在:{apk_path}"
-        print(f"[输出aab]:{out_aab_path}")
-        print(f"[签名]:{self.keystore},storepass:{self.storepass},alias:{self.alias},keypass:{self.keypass}")
+        print_log(f"[输出aab]:{out_aab_path}")
+        print_log(f"[签名]:{self.keystore},storepass:{self.storepass},alias:{self.alias},keypass:{self.keypass}")
         if not os.path.exists(self.keystore):
             return -2, f"输入的keystore不存在:{self.keystore}"
         status, msg = execute_cmd(
             f"keytool -list -v -keystore {self.keystore} -storepass {self.storepass} -alias {self.alias} ")
         status += status
-        print(f"↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓")
+        print_log(f"↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓")
         if get_system() in [MACOS, Linux]:
             status, msg = execute_cmd(
                 f"keytool -exportcert -alias {self.alias} -keystore {self.keystore} -storepass {self.storepass} | openssl sha1 -binary | openssl base64")
             if status != 0:
                 return -999, "签名错误"
         else:
-            print("window不去校验，避免没有openssl的库")
-        print(f"↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
-        print(f"[apktool]:{self.apktool}")
-        print(f"[apktool版本号]:↓↓↓↓↓")
+            print_log("window不去校验，避免没有openssl的库")
+        print_log(f"↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+        print_log(f"[apktool]:{self.apktool}")
+        print_log(f"[apktool版本号]:↓↓↓↓↓")
         status, msg = execute_cmd(f"java -jar {self.apktool} --version")
         status += status
         # 如果是linux 或者 mac 需要给aapt可执行权限
@@ -257,18 +268,18 @@ class Bundletool:
             try:
                 execute_cmd(f"chmod +x {self.aapt2}")
             except Exception as e:
-                print("授权失败:", e)
+                print_log("授权失败:", e)
                 pass
             pass
-        print(f"[aapt2]:{self.aapt2}")
-        print(f"[aapt2版本号]:↓↓↓↓↓")
+        print_log(f"[aapt2]:{self.aapt2}")
+        print_log(f"[aapt2版本号]:↓↓↓↓↓")
         status, msg = execute_cmd(f"{self.aapt2} version")
         status += status
-        print(f"[android]:{self.android}")
+        print_log(f"[android]:{self.android}")
         if not os.path.exists(self.android):
             return -3, f"输入的android.jar不存在:f{self.android}"
-        print(f"[bundletool]:{self.bundletool}")
-        print(f"[bundletool版本号]:↓↓↓↓↓")
+        print_log(f"[bundletool]:{self.bundletool}")
+        print_log(f"[bundletool版本号]:↓↓↓↓↓")
         status, msg = execute_cmd(f"java -jar {self.bundletool} version")
         status += status
         return status, "success"
@@ -350,45 +361,44 @@ class Bundletool:
             try:
                 # 资源文件的开头是 '$' 的，存在编译失败的问题。但是好像并不影响程序的使用，正常开发也不会存在$开头的文件,
                 # 文件怎么来的？
-                task("编译资源", compile_resources, input_res_dir, compiled_resources, self.aapt2)
+                task(f"[{module_name}]-编译资源", compile_resources, input_res_dir, compiled_resources, self.aapt2)
             except Exception as e:
-                # TODO 暂时不管
-                print("编译资源错误", e)
+                print_log(f"[{module_name}]-编译资源错误 {str(e)}")
                 pass
         # 2. 通过 compiled_resources.zip 和 AndroidManifest.xml 生成中间产物 base.apk
-        task("关联资源", link_resources, link_base_apk_path, input_manifest, self.android, self.min_sdk_version,
+        task(f"[{module_name}]-关联资源", link_resources, link_base_apk_path, input_manifest, self.android,
+             self.min_sdk_version,
              self.target_sdk_version, self.version_code, self.version_name, self.aapt2, compiled_resources)
         # 3. 解压base.apk  获取AndroidManifest.xml 和res
-        task("解压resources_apk", unzip_file, link_base_apk_path, unzip_link_apk_path)
+        task(f"[{module_name}]-解压resources_apk", unzip_file, link_base_apk_path, unzip_link_apk_path)
         # 4. 修改AndroidManifest.xml 的 位置 构建aab需要的目录
-        task("移动AndroidManifest", mv, temp_android_manifest_path, target_android_manifest_path)
+        task(f"[{module_name}]-移动AndroidManifest", mv, temp_android_manifest_path, target_android_manifest_path)
         # 5. 拷贝assets
         if os.path.exists(input_assets):
-            task("拷贝assets", copy, input_assets, target_assets_path)
+            task(f"[{module_name}]-拷贝assets", copy, input_assets, target_assets_path)
         # 6. 拷贝lib
         if os.path.exists(input_lib):
-            task("拷贝lib", copy, input_lib, target_lib_path)
+            task(f"[{module_name}]-拷贝lib", copy, input_lib, target_lib_path)
         # 7. 拷贝其他的文件
         if os.path.exists(input_unknown):
-            task("拷贝unknown", copy, input_unknown, target_unknown_path)
+            task(f"[{module_name}]-拷贝unknown", copy, input_unknown, target_unknown_path)
         # 8. 拷贝kotlin的文件
         if os.path.exists(input_kotlin):
-            task("拷贝kotlin", copy, input_kotlin, target_kotlin_path)
+            task(f"[{module_name}]-拷贝kotlin", copy, input_kotlin, target_kotlin_path)
         # 9. 删除apk的签名信息
         if os.path.exists(input_meta_inf_path):
-            task("处理原有的apk签名信息", delete_sign, input_meta_inf_path)
+            task(f"[{module_name}]-处理原有的apk签名信息", delete_sign, input_meta_inf_path)
         # 10. 拷贝META-INF的时候需要先删除 apk的签名信息
         if os.path.exists(input_meta_inf_path):
-            task("拷贝META-INF", copy, input_meta_inf_path, target_mata_inf_path)
+            task(f"[{module_name}]-拷贝META-INF", copy, input_meta_inf_path, target_mata_inf_path)
         # 11. 拷贝 dex
         if os.path.exists(input_resources_dir):
-            task("拷贝dex", copy_dex, input_resources_dir, target_dex_path)
+            task(f"[{module_name}]-拷贝dex", copy_dex, input_resources_dir, target_dex_path)
         # 12. 压缩成base.zip
-        task("压缩base.zip", zip_file, unzip_link_apk_path, out_module_zip_path)
+        task(f"[{module_name}]-压缩zip", zip_file, unzip_link_apk_path, out_module_zip_path)
         return 0, "success"
 
     def run(self, apk_path, out_aab_path, pad_reg=""):
-        tag = False
         self.pad_reg = pad_reg
 
         # 生成临时的工作目录
@@ -420,7 +430,7 @@ class Bundletool:
                 self.bundle_modules[module_name] = pad_module_temp_dir
 
             for name, path in self.bundle_modules.items():
-                task("构建module压缩包", self.build_module_zip, temp_dir, name, path,
+                task(f"[{name}]-构建module压缩包", self.build_module_zip, temp_dir, name, path,
                      os.path.join(module_zip_dir, name + ".zip"))
             # 获取所有的module 的name
             all_module_name = self.bundle_modules.keys()
@@ -432,17 +442,11 @@ class Bundletool:
             task("签名", sign, temp_aab_path, self.keystore, self.storepass, self.keypass, self.alias)
             task("拷贝输出拷贝", copy, temp_aab_path, out_aab_path)
         except Exception as e:
-            print(e)
-            tag = True
-            pass
-
-        status, msg = delete(temp_dir)
-        print(f"执行完成，删除临时文件。输出路径:{out_aab_path}")
-        return 1 if tag else 0, msg
-        # if tag:
-        #     sys.exit(1)
-        # else:
-        #     sys.exit(0)
+            print_log(e)
+            return -1, str(e)
+        finally:
+            status, _ = delete(temp_dir)
+        return 0, "success"
 
 
 if __name__ == "__main__":
