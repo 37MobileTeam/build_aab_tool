@@ -10,8 +10,6 @@ import xml.etree.ElementTree as ET
 
 from utils import *
 
-global_print_fun = None
-
 
 def print_log(message):
     if global_print_fun:
@@ -215,6 +213,8 @@ class Bundletool:
                  android=ANDROID_JAR_PATH,
                  bundletool=BUNDLETOOL_TOOL_PATH,
                  print_fun=None):
+        global global_print_fun
+        global_print_fun = print_fun
         # 初始化环境
         self.pad_reg = ""
         self.keystore = os.path.abspath(keystore)
