@@ -42,6 +42,13 @@ def get_file_name_list(file_dir: str):
 def zip_file(src_dir, zip_name=""):
     if not zip_name:
         zip_name = src_dir + '.zip'
+    # 尝试调用一下系统的压缩方法，  速度快一点。。。
+    cmd = f"zip -r {zip_name} {src_dir}"
+    status, message = execute_cmd(cmd)
+    if status == 0:
+        return 0, "success",
+    # 如果失败了，尝试去删除一下
+    delete(zip_name)
     z = zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED)
     for dirpath, dirnames, filenames in os.walk(src_dir):
         fpath = dirpath.replace(src_dir, '')
@@ -64,6 +71,7 @@ def unzip_file(zip_src, dst_dir):
 
 
 def mv(src_path, dst_path):
+    # TODO 可以有优化
     copy(src_path, dst_path)
     delete(src_path)
     return 0, "success"
