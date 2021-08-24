@@ -1,5 +1,6 @@
 # coding=utf-8
 import datetime
+import json
 import re
 import yaml
 import argparse
@@ -139,16 +140,19 @@ def copy_dex(base_dir_path, target_dex_path):
     return 0, "success"
 
 
-def build_bundle(bundletool: str, modules: str, out_aab_path: str):
+def build_bundle(bundletool: str, modules: str, out_aab_path: str, bundle_config_json_path: str = None):
     """
     构建aab
     :param bundletool: 构架工具
     :param modules: 需要构建的module， 多个module用 , 隔开
     :param out_aab_path: 输出的aab的路径
+    :param bundle_config_json_path: 构建config的配置文件
     """
     cmd = f"java -jar {bundletool} build-bundle \
         --modules={modules} \
-        --output={out_aab_path}"
+        --output={out_aab_path} "
+    if bundle_config_json_path and os.path.exists(bundle_config_json_path):
+        cmd += f" --config={bundle_config_json_path}"
     return execute_cmd(cmd)
 
 
@@ -210,6 +214,24 @@ def sign(temp_aab_path, keystore, storepass, keypass, alias):
     return execute_cmd(cmd)
 
 
+def create_bundle_config_json(bundle_config_json_path: str, do_not_compress: list):
+    glob_not_compress = ['**.3[gG]2', '**.3[gG][pP]', '**.3[gG][pP][pP]', '**.3[gG][pP][pP]2', '**.[aA][aA][cC]',
+                         '**.[aA][mM][rR]', '**.[aA][wW][bB]', '**.[gG][iI][fF]', '**.[iI][mM][yY]', '**.[jJ][eE][tT]',
+                         '**.[jJ][pP][eE][gG]', '**.[jJ][pP][gG]', '**.[mM]4[aA]', '**.[mM]4[vV]', '**.[mM][iI][dD]',
+                         '**.[mM][iI][dD][iI]', '**.[mM][kK][vV]', '**.[mM][pP]2', '**.[mM][pP]3', '**.[mM][pP]4',
+                         '**.[mM][pP][eE][gG]', '**.[mM][pP][gG]', '**.[oO][gG][gG]', '**.[oO][pP][uU][sS]',
+                         '**.[pP][nN][gG]', '**.[rR][tT][tT][tT][lL]', '**.[sS][mM][fF]', '**.[tT][fF][lL][iI][tT][eE]',
+                         '**.[wW][aA][vV]', '**.[wW][eE][bB][mM]', '**.[wW][eE][bB][pP]', '**.[wW][mM][aA]',
+                         '**.[wW][mM][vV]', '**.[xX][mM][fF]']
+    do_not_compress = list(filter(lambda x: not x.startswith("META-INF"), do_not_compress))
+    do_not_compress += glob_not_compress
+    # {"compression": {"uncompressedGlob": ["foo"]},"bundletool":{}}
+    config = {"bundletool": {"version": "1.2.3"}, "compression": {"uncompressedGlob": do_not_compress}, }
+    data = json.dumps(config)
+    write_file_text(bundle_config_json_path, data)
+    return 0, "success"
+
+
 class Bundletool:
 
     def __init__(self, keystore=KEYSTORE,
@@ -240,6 +262,8 @@ class Bundletool:
         self.version_code = 1
         self.version_name = "1.0.0"
         self.apk_package_name = ""
+
+        self.do_not_compress = []
 
         # 构建的module集合
         self.bundle_modules = {}
@@ -303,6 +327,8 @@ class Bundletool:
         version_info = data["versionInfo"]
         self.version_code = version_info["versionCode"]
         self.version_name = version_info["versionName"]
+
+        self.do_not_compress = data["doNotCompress"]
 
         tree = ET.parse(os.path.join(decode_apk_dir, "AndroidManifest.xml"))
         root = tree.getroot()
@@ -445,13 +471,16 @@ class Bundletool:
             all_module_path = list(map(lambda x: os.path.join(module_zip_dir, x + ".zip"), all_module_name))
             # 构建编译的module
             modules = ",".join(all_module_path)
-            task("构建aab", build_bundle, self.bundletool, modules, temp_aab_path)
+            bundle_config_json_path = os.path.join(temp_dir, "BundleConfig.pb.json")
+            task("构建config json", create_bundle_config_json, bundle_config_json_path, self.do_not_compress)
+            task("构建aab", build_bundle, self.bundletool, modules, temp_aab_path, bundle_config_json_path)
             task("签名", sign, temp_aab_path, self.keystore, self.storepass, self.keypass, self.alias)
             task("拷贝输出拷贝", copy, temp_aab_path, out_aab_path)
         except Exception as e:
             print_log(e)
             return -1, str(e)
         finally:
+            pass
             status, _ = delete(temp_dir)
         return 0, "success"
 
@@ -496,8 +525,9 @@ if __name__ == "__main__":
                             aapt2=aapt2,
                             android=android,
                             bundletool=bundletool)
-    bundletool.run(apk_path=input_apk_path,
-                   out_aab_path=output_aab_path,
-                   pad_reg=input_pad_reg)
+    status, message = bundletool.run(apk_path=input_apk_path,
+                                     out_aab_path=output_aab_path,
+                                     pad_reg=input_pad_reg)
 
+    sys.exit(status)
 pass
