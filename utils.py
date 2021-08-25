@@ -49,7 +49,7 @@ def zip_file(src_dir, zip_name=""):
     if not zip_name:
         zip_name = src_dir + '.zip'
     # 尝试调用一下系统的压缩方法，  速度快一点。。。
-    cmd = f"zip -r {zip_name} {src_dir}"
+    cmd = f"cd {src_dir} && zip -r -q -D {os.path.abspath(zip_name)} *"
     status, message = execute_cmd(cmd)
     if status == 0:
         return 0, "success",
