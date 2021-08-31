@@ -67,7 +67,7 @@ def compile_resources(compile_source_res_dir: str, compiled_resources: str, aapt
     """
     cmd = f"{aapt2} compile --legacy\
         --dir {compile_source_res_dir} \
-        -o {compiled_resources}"
+        -o {compiled_resources} "
     return execute_cmd(cmd)
 
 
@@ -79,7 +79,8 @@ def link_resources(link_out_apk_path: str,
                    version_code: str,
                    version_name: str,
                    aapt2: str,
-                   compiled_resources_path: str = None):
+                   compiled_resources_path: str = None,
+                   public_id_path: str = None):
     """
     生成一个apk
     :param link_out_apk_path: 生成临时apk的路径
@@ -105,7 +106,8 @@ def link_resources(link_out_apk_path: str,
 
     if compiled_resources_path and os.path.exists(compiled_resources_path):
         cmd += f" -R {compiled_resources_path}"
-
+    if public_id_path and os.path.exists(public_id_path):
+        cmd += f" --stable-ids {public_id_path}"
     return execute_cmd(cmd)
 
 
@@ -316,6 +318,19 @@ class Bundletool:
         status += status
         return status, "success"
 
+    def build_public_id(self, public_path, decode_apk_dir):
+        apk_public_path = os.path.join(decode_apk_dir, "res", "values", "public.xml")
+        tree = ET.parse(apk_public_path)
+        root = tree.getroot()
+        s = []
+        for i in root:
+            x_type = i.attrib["type"]
+            x_name = i.attrib["name"]
+            x_id = i.attrib["id"]
+            s.append(f"{self.apk_package_name}:{x_type}/{x_name} = {x_id}\n")
+        write_file_text(public_path, "".join(s))
+        return 0, "success"
+
     def analysis_apk(self, decode_apk_dir):
         content = read_file_text(os.path.join(decode_apk_dir, "apktool.yml"))
         content = content.replace("!!brut.androlib.meta.MetaInfo", "")
@@ -339,7 +354,8 @@ class Bundletool:
     def is_pad(self):
         return len(self.pad_reg) > 0
 
-    def build_module_zip(self, temp_dir: str, module_name: str, input_resources_dir: str, out_module_zip_path: str):
+    def build_module_zip(self, temp_dir: str, module_name: str, input_resources_dir: str, out_module_zip_path: str,
+                         public_id_path: str = None):
         """
         :param temp_dir: 构建的临时根目录
         :param module_name: module的名字
@@ -401,7 +417,8 @@ class Bundletool:
         # 2. 通过 compiled_resources.zip 和 AndroidManifest.xml 生成中间产物 base.apk
         task(f"[{module_name}]-关联资源", link_resources, link_base_apk_path, input_manifest, self.android,
              self.min_sdk_version,
-             self.target_sdk_version, self.version_code, self.version_name, self.aapt2, compiled_resources)
+             self.target_sdk_version, self.version_code, self.version_name, self.aapt2, compiled_resources,
+             public_id_path=public_id_path)
         # 3. 解压base.apk  获取AndroidManifest.xml 和res
         task(f"[{module_name}]-解压resources_apk", unzip_file, link_base_apk_path, unzip_link_apk_path)
         # 4. 修改AndroidManifest.xml 的 位置 构建aab需要的目录
@@ -450,10 +467,13 @@ class Bundletool:
         # 添加模块
         self.bundle_modules["base"] = decode_apk_dir
 
+        public_id_path = os.path.join(temp_dir, "public.txt")
+
         try:
             task("环境&参数校验", self.check_system, apk_path, out_aab_path)
             task("解压input_apk", decode_apk, apk_path, decode_apk_dir, self.apktool)
             task("解析apk信息", self.analysis_apk, decode_apk_dir)
+            task("构建public.txt", self.build_public_id, public_id_path, decode_apk_dir)
             if self.is_pad():
                 module_name = "pad_sy"
                 pad_module_temp_dir = os.path.join(temp_dir, module_name)
@@ -464,7 +484,7 @@ class Bundletool:
 
             for name, path in self.bundle_modules.items():
                 task(f"[{name}]-构建module压缩包", self.build_module_zip, temp_dir, name, path,
-                     os.path.join(module_zip_dir, name + ".zip"))
+                     os.path.join(module_zip_dir, name + ".zip"), public_id_path)
             # 获取所有的module 的name
             all_module_name = self.bundle_modules.keys()
             # 获取所有module的path
