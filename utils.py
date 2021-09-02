@@ -15,14 +15,9 @@ def get_system() -> str:
 
 
 def execute_cmd(cmd):
-    if get_system() in [WINDOWS]:
-        encoding = "GBK"
-    else:
-        encoding = "UTF-8"
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding=encoding,
-                         close_fds=True)
-    (stdoutput, erroutput) = p.communicate()
-    return 0 if not erroutput else -1, erroutput if erroutput else stdoutput
+    # print("#" * 10, cmd)
+    status = os.system(cmd)
+    return status, ""
 
 
 def read_file_text(file_path) -> str:
