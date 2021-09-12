@@ -3,7 +3,6 @@ import os
 import shutil
 import zipfile
 import platform
-import subprocess
 
 WINDOWS = "Windows"
 Linux = "Linux"
@@ -40,19 +39,23 @@ def get_file_name_list(file_dir: str):
     return file_name_list
 
 
-def zip_file(src_dir, zip_name=""):
+def zip_file(src_dir, zip_name="", parent_dir_name=""):
     if not zip_name:
         zip_name = src_dir + '.zip'
-    # 尝试调用一下系统的压缩方法，  速度快一点。。。
-    cmd = f"cd {src_dir} && zip -r -q -D {os.path.abspath(zip_name)} *"
-    status, message = execute_cmd(cmd)
-    if status == 0:
-        return 0, "success",
-    # 如果失败了，尝试去删除一下
-    delete(zip_name)
-    z = zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED)
+    mode = "w"
+    if os.path.exists(zip_name):
+        mode = "a"
+    if "w" == mode and parent_dir_name == "":
+        # 尝试调用一下系统的压缩方法，  速度快一点。。。
+        cmd = f"cd {src_dir} && zip -r -q -D {os.path.abspath(zip_name)} *"
+        status, message = execute_cmd(cmd)
+        if status == 0:
+            return 0, "success",
+        # 如果失败了，尝试去删除一下
+        delete(zip_name)
+    z = zipfile.ZipFile(zip_name, mode, zipfile.ZIP_DEFLATED)
     for dirpath, dirnames, filenames in os.walk(src_dir):
-        fpath = dirpath.replace(src_dir, '')
+        fpath = dirpath.replace(src_dir, parent_dir_name)
         fpath = fpath and fpath + os.sep or ''
         for filename in filenames:
             z.write(os.path.join(dirpath, filename), fpath + filename)

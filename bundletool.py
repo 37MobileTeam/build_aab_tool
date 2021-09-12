@@ -9,6 +9,9 @@ import sys
 
 import xml.etree.ElementTree as ET
 
+from files_pb2 import Assets
+from google.protobuf import json_format
+
 if hasattr(sys, "_flask"):
     from .utils import *
 else:
@@ -68,6 +71,26 @@ def compile_resources(compile_source_res_dir: str, compiled_resources: str, aapt
     cmd = f"{aapt2} compile --legacy\
         --dir {compile_source_res_dir} \
         -o {compiled_resources} "
+    return execute_cmd(cmd)
+
+
+def link_asset_resources(link_out_apk_path: str,
+                         input_manifest: str,
+                         android: str,
+                         aapt2: str):
+    """
+    生成一个apk
+    :param link_out_apk_path: 生成临时apk的路径
+    :param input_manifest: 需要的manifest的路径
+    :param android: android的jar
+    :param aapt2: aapt2的路径
+    :return:
+    """
+    cmd = f"{aapt2} link --proto-format \
+        -o {link_out_apk_path} \
+        -I {android} \
+        --manifest {input_manifest} \
+        --auto-add-overlay"
     return execute_cmd(cmd)
 
 
@@ -200,8 +223,9 @@ def create_pad_module_dir(temp_dir, module_name, package):
     if status != 0:
         return status, message
     template_android_manifest_path = os.path.join(temp_dir, "AndroidManifest.xml")
-    text = read_file_text(template_android_manifest_path).replace("$padName", module_name).replace("$applicationId",
-                                                                                                   package)
+    text = read_file_text(template_android_manifest_path) \
+        .replace("$padName", module_name) \
+        .replace("$applicationId", package)
     write_file_text(template_android_manifest_path, text)
     return 0, "success"
 
@@ -269,6 +293,7 @@ class Bundletool:
 
         # 构建的module集合
         self.bundle_modules = {}
+        self.bundle_asset_pack_modules = {}
 
     def check_system(self, apk_path, out_aab_path):
         print_log(f"[当前系统]:{get_system()}")
@@ -353,6 +378,64 @@ class Bundletool:
 
     def is_pad(self):
         return len(self.pad_reg) > 0
+
+    def build_asset_pack(self, temp_dir: str, module_name: str, input_resources_dir: str, out_module_zip_path: str):
+        # 构建的临时目录
+        module_temp_dir = os.path.join(temp_dir, f"{module_name}_temp")
+        # 创建一下
+        os.makedirs(module_temp_dir)
+        # 生成的临时apk
+        link_base_apk_path = os.path.join(module_temp_dir, f"{module_name}.apk")
+        # 解压临时apk后的文件夹路径
+        unzip_link_apk_path = os.path.join(module_temp_dir, module_name)
+        # 解压后临时文件夹，AndroidManifest的路径
+        temp_android_manifest_path = os.path.join(unzip_link_apk_path, "AndroidManifest.xml")
+        # 构建的AndroidManifest.xml文件, 构建后删除
+        input_manifest = os.path.join(input_resources_dir, "AndroidManifest.xml")
+        # 最终的manifest的路径
+        target_manifest_path = os.path.join(input_resources_dir, "manifest", "AndroidManifest.xml")
+        # 构建
+        task(f"[{module_name}]-asset-关联资源", link_asset_resources, link_base_apk_path, input_manifest, self.android,
+             self.aapt2)
+        # 解压
+        task(f"[{module_name}]-asset-解压resources_apk", unzip_file, link_base_apk_path, unzip_link_apk_path)
+        # 拷贝
+        task(f"[{module_name}]-asset-移动AndroidManifest", mv, temp_android_manifest_path, target_manifest_path)
+        # 删除
+        task(f"[{module_name}]-asset-删除AndroidManifest", delete, input_manifest)
+
+        # 构建asset.pb文件
+        asset_path = input_resources_dir
+        asset_dir_list = []
+        for root, dirs, files in os.walk(asset_path):
+            for i in dirs:
+                is_statistics = False
+                for t in os.listdir(os.path.join(root, i)):
+                    if os.path.isfile(os.path.join(root, i, t)):
+                        is_statistics = True
+                        break
+                # print(i, dirs, files)
+                if not is_statistics:
+                    continue
+                path = os.path.join(root, i).replace("\\", os.sep).replace("/", os.sep)
+                if not asset_path.endswith(os.sep):
+                    asset_path = asset_path + os.sep
+                path = path.replace(asset_path, "")
+                asset_dir_list.append(path)
+
+        asset_dir_list = list(filter(lambda x: x.startswith("assets"), asset_dir_list))
+        asset_dir_list = list(map(lambda x: x.replace("\\", "/"), asset_dir_list))
+        asset_dir_list = list(map(lambda x: {"path": x, "targeting": {}}, asset_dir_list))
+
+        my_asset_obj = {
+            "directory": asset_dir_list
+        }
+        my_asset_json_str = json.dumps(my_asset_obj)
+        asset_config = json_format.Parse(my_asset_json_str, Assets())
+        data = asset_config.SerializeToString()
+
+        open(os.path.join(input_resources_dir, "assets.pb"), "wb").write(data)
+        return 0, "success"
 
     def build_module_zip(self, temp_dir: str, module_name: str, input_resources_dir: str, out_module_zip_path: str,
                          public_id_path: str = None):
@@ -458,7 +541,9 @@ class Bundletool:
         os.mkdir(temp_dir)
 
         module_zip_dir = os.path.join(temp_dir, "modules")
+        module_asset_pack_dir = os.path.join(temp_dir, "asset_pack")
         os.mkdir(module_zip_dir)
+        os.mkdir(module_asset_pack_dir)
 
         decode_apk_dir = os.path.join(temp_dir, "decode_apk_dir")
 
@@ -480,11 +565,15 @@ class Bundletool:
                 package = self.apk_package_name
                 task("构建一个pad模块", create_pad_module_dir, pad_module_temp_dir, module_name, package)
                 task("移动资源到pad模块", pad_mv_assets, decode_apk_dir, pad_module_temp_dir, self.pad_reg)
-                self.bundle_modules[module_name] = pad_module_temp_dir
+                self.bundle_asset_pack_modules[module_name] = pad_module_temp_dir
 
             for name, path in self.bundle_modules.items():
                 task(f"[{name}]-构建module压缩包", self.build_module_zip, temp_dir, name, path,
                      os.path.join(module_zip_dir, name + ".zip"), public_id_path)
+
+            for name, path in self.bundle_asset_pack_modules.items():
+                task(f"[{name}]-构建asset_pack_module", self.build_asset_pack, temp_dir, name, path,
+                     os.path.join(module_asset_pack_dir, name + ".zip"))
             # 获取所有的module 的name
             all_module_name = self.bundle_modules.keys()
             # 获取所有module的path
@@ -494,6 +583,8 @@ class Bundletool:
             bundle_config_json_path = os.path.join(temp_dir, "BundleConfig.pb.json")
             task("构建config json", create_bundle_config_json, bundle_config_json_path, self.do_not_compress)
             task("构建aab", build_bundle, self.bundletool, modules, temp_aab_path, bundle_config_json_path)
+            for name, path in self.bundle_asset_pack_modules.items():
+                task(f"[{name}]-压缩asset_pack in aab", zip_file, path, temp_aab_path, name)
             task("签名", sign, temp_aab_path, self.keystore, self.storepass, self.keypass, self.alias)
             task("拷贝输出拷贝", copy, temp_aab_path, out_aab_path)
         except Exception as e:
