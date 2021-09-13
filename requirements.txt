@@ -1,1 +1,2 @@
 PyYAML == 5.4.1
+protobuf == 3.17.3
