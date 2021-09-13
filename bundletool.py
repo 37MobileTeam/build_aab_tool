@@ -268,7 +268,7 @@ def create_bundle_config_json(bundle_config_json_path: str, do_not_compress: lis
     do_not_compress += glob_not_compress
 
     splits_config = {
-        "split_dimension": [
+        "splitDimension": [
             {"value": "ABI"},
             {"value": "LANGUAGE", "negate": True},
             {"value": "SCREEN_DENSITY", "negate": True},
@@ -281,19 +281,19 @@ def create_bundle_config_json(bundle_config_json_path: str, do_not_compress: lis
 
     }
     standalone_config = {
-        "split_dimension": [
+        "splitDimension": [
             {"value": "ABI", "negate": True},
             {"value": "LANGUAGE", "negate": True},
             {"value": "SCREEN_DENSITY", "negate": True},
             {"value": "TEXTURE_COMPRESSION_FORMAT", "negate": True},
         ],
-        "strip_64_bit_libraries": True
+        "strip64BitLibraries": False
     }
     optimizations = {
-        "splits_config": splits_config,
-        "uncompress_native_libraries": uncompress_native_libraries,
-        "uncompress_dex_files": uncompress_dex_files,
-        "standalone_config": standalone_config
+        "splitsConfig": splits_config,
+        "uncompressNativeLibraries": uncompress_native_libraries,
+        "uncompressDexFiles": uncompress_dex_files,
+        "standaloneConfig": standalone_config
     }
 
     config = {"bundletool": {"version": "1.6.1"}, "optimizations": optimizations,
