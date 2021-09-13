@@ -251,8 +251,38 @@ def create_bundle_config_json(bundle_config_json_path: str, do_not_compress: lis
                          '**.[wW][mM][vV]', '**.[xX][mM][fF]']
     do_not_compress = list(filter(lambda x: not x.startswith("META-INF"), do_not_compress))
     do_not_compress += glob_not_compress
-    # {"compression": {"uncompressedGlob": ["foo"]},"bundletool":{}}
-    config = {"bundletool": {"version": "1.2.3"}, "compression": {"uncompressedGlob": do_not_compress}, }
+
+    splits_config = {
+        "split_dimension": [
+            {"value": "ABI"},
+            {"value": "LANGUAGE", "negate": True},
+            {"value": "SCREEN_DENSITY", "negate": True},
+        ]
+    }
+    uncompress_native_libraries = {
+        "enabled": True
+    }
+    uncompress_dex_files = {
+
+    }
+    standalone_config = {
+        "split_dimension": [
+            {"value": "ABI", "negate": True},
+            {"value": "LANGUAGE", "negate": True},
+            {"value": "SCREEN_DENSITY", "negate": True},
+            {"value": "TEXTURE_COMPRESSION_FORMAT", "negate": True},
+        ],
+        "strip_64_bit_libraries": True
+    }
+    optimizations = {
+        "splits_config": splits_config,
+        "uncompress_native_libraries": uncompress_native_libraries,
+        "uncompress_dex_files": uncompress_dex_files,
+        "standalone_config": standalone_config
+    }
+
+    config = {"bundletool": {"version": "1.6.1"}, "optimizations": optimizations,
+              "compression": {"uncompressedGlob": do_not_compress}, }
     data = json.dumps(config)
     write_file_text(bundle_config_json_path, data)
     return 0, "success"
