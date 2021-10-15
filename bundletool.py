@@ -169,12 +169,35 @@ def copy_dex(base_dir_path, target_dex_path):
     :param base_dir_path: 资源的目录
     :param target_dex_path: 目标目录
     """
-    dex_array = list(filter(lambda x: x.endswith("dex"), os.listdir(base_dir_path)))
+    dex_array = list(filter(lambda x: x.endswith("dex") and x.startswith("classes"), os.listdir(base_dir_path)))
     dex_path_array = list(
         map(lambda x: os.path.join(base_dir_path, x), dex_array))
     for dex in dex_path_array:
         basename = os.path.basename(dex)
         status, msg = copy(dex, os.path.join(target_dex_path, basename))
+        if status != 0:
+            return status, msg
+    return 0, "success"
+
+
+def copy_other(base_dir_path, target_unknown_path):
+    """
+    拷贝other 文件 (主要是assets)
+    :param base_dir_path: 资源的目录
+    :param target_unknown_path: 目标目录
+    """
+    # 已知存在的文件，不需要拷贝的， 其他的文件需要拷贝到root目录下面。
+    known_file_name_list = ["assets", "build", "dist", "kotlin", "lib", "original", "res", "unknown",
+                            "AndroidManifest.xml", "apktool.yml"]
+    other_file_name_array = list(
+        filter(
+            lambda x: (not x.startswith("classes")) and (not x.startswith("smali")) and x not in known_file_name_list,
+            os.listdir(base_dir_path)))
+    other_file_path_array = list(
+        map(lambda x: os.path.join(base_dir_path, x), other_file_name_array))
+    for other_file in other_file_path_array:
+        basename = os.path.basename(other_file)
+        status, msg = copy(other_file, os.path.join(target_unknown_path, basename))
         if status != 0:
             return status, msg
     return 0, "success"
@@ -572,6 +595,7 @@ class Bundletool:
         # 11. 拷贝 dex
         if os.path.exists(input_resources_dir):
             task(f"[{module_name}]-拷贝dex", copy_dex, input_resources_dir, target_dex_path)
+        task(f"[{module_name}]-拷贝其他文件", copy_other, input_resources_dir, target_unknown_path)
         # 12. 压缩成base.zip
         task(f"[{module_name}]-压缩zip", zip_file, unzip_link_apk_path, out_module_zip_path)
         return 0, "success"
